@@ -1,0 +1,188 @@
+# © 2024 Sepeher Golpazir, Some Rights Reserved.
+# Github: https://github.com/sepehr-glpz
+# Linkedin: https://linkedin.com/sepehr-golpazir
+# Telegram: https://t.me/sepi_G
+
+version: "3.10"
+services:
+  broker-1:
+    image: confluentinc/cp-kafka:latest
+    container_name: limgrave
+    hostname: limgrave
+    user: root
+    ports:
+      - ${KAFKA_NODE_1_MAP_PORT}:9092
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://limgrave:29092,CONTROLLER://limgrave:9093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://limgrave:29092,EXTERNAL://127.0.0.1:${KAFKA_NODE_1_MAP_PORT}"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@limgrave:9093,2@liurnia:9093,3@caelid:9093"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_LOG_RETENTION_HOURS: 24
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+    volumes:
+      - F:\data\debkaf\limgrave\data:/var/lib/kafka/data
+      - F:\data\debkaf\limgrave\secrets:/etc/kafka/secrets
+
+  broker-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: liurnia
+    hostname: liurnia
+    user: root
+    ports:
+      - ${KAFKA_NODE_2_MAP_PORT}:9092
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://liurnia:29092,CONTROLLER://liurnia:9093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://liurnia:29092,EXTERNAL://127.0.0.1::${KAFKA_NODE_2_MAP_PORT}"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@limgrave:9093,2@liurnia:9093,3@caelid:9093"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_LOG_RETENTION_HOURS: 24
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+    volumes:
+      - F:\data\debkaf\liurnia\data:/var/lib/kafka/data
+      - F:\data\debkaf\liurnia\secrets:/etc/kafka/secrets
+
+  broker-3:
+    image: confluentinc/cp-kafka:latest
+    container_name: caelid
+    hostname: caelid
+    user: root
+    ports:
+      - ${KAFKA_NODE_3_MAP_PORT}:9092
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://caelid:29092,CONTROLLER://caelid:9093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://caelid:29092,EXTERNAL://127.0.0.1::${KAFKA_NODE_3_MAP_PORT}"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@limgrave:9093,2@liurnia:9093,3@caelid:9093"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_OFFSET_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_LOG_RETENTION_HOURS: 24
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+    volumes:
+      - F:\data\debkaf\caelid\data:/var/lib/kafka/data
+      - F:\data\debkaf\caelid\secrets:/etc/kafka/secrets
+
+  ui:
+    image: provectuslabs/kafka-ui
+    container_name: erdtree
+    hostname: erdtree
+    ports:
+      - ${KAFKA_UI_MAP_PORT}:8080
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ${KAFKA_UI_CLUSTER_NAME}
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "limgrave:29092,liurnia:29092,caelid:29092"
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://regis:8081
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
+      - registry
+
+  registry:
+    image: confluentinc/cp-schema-registry:latest
+    container_name: regis
+    hostname: regis
+    ports:
+      - ${SCHEMA_REG_MAP_PORT}:8081
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: limgrave:29092,liurnia:29092,caelid:29092
+      SCHEMA_REGISTRY_HOST_NAME: regis
+      SCHEMA_REGISTRY_GROUP_ID: schema-registry
+      SCHEMA_REGISTRY_ACCESS_CONTROL_ALLOW_METHODS: GET,POST,PUT,OPTIONS
+      SCHEMA_REGISTRY_ACCESS_CONTROL_ALLOW_ORIGIN: "*"
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
+
+  registry-ui:
+    image: landoop/schema-registry-ui:latest
+    container_name: regis-ui
+    hostname: regis-ui
+    depends_on:
+      - registry
+    ports:
+      - ${SCHEMA_REG_UI_MAP_PORT}:8000
+    environment:
+      SCHEMAREGISTRY_URL: "http://regis:8081"
+      ALLOW_GLOBAL: 1
+      ALLOW_DELETION: 1
+      PROXY: "true"
+
+  debra:
+    image: debezium/connect:latest
+    container_name: debez
+    hostname: debez
+    ports:
+      - ${DEBEZ_MAP_PORT}:8083
+    volumes:
+      - F:\data\debkaf\debez\kafka\config:/kafka/config
+      - F:\data\debkaf\debez\kafka\data:/kafka/data
+      - F:\data\debkaf\debez\kafka\logs:/kafka/logs
+      - .\libs:/kafka/connect/libs
+    environment:
+      BOOTSTRAP_SERVERS: "limgrave:29092,liurnia:29092,caelid:29092"
+      GROUP_ID: ${DEBEZ_GROUP_ID}
+      CONFIG_STORAGE_TOPIC: ${DEBEZ_CONFIG_STORAGE_TOPIC}
+      OFFSET_STORAGE_TOPIC: ${DEBEZ_CONFIG_STORAGE_TOPIC}
+      STATUS_STORAGE_TOPIC: ${DEBEZ_CONFIG_STORAGE_TOPIC}
+      KAFKA_CONNECT_PLUGINS_DIR: "/kafka/connect/"
+      KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://regis:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://regis:8081
+      CONNECT_TOPIC_CREATION_ENABLE: "true"
+      CONNECT_OFFSET_STORAGE_PARTITIONS: 1
+      CONNECT_CONFIG_STORAGE_PARTITIONS: 1
+      CONNECT_STATUS_STORAGE_PARTITIONS: 1
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
+      - registry
+
+  debra-ui:
+    image: debezium/debezium-ui:latest
+    container_name: debez-ui
+    hostname: debez-ui
+    depends_on:
+      - debra
+    ports:
+      - ${DEBEZ_UI_MAP_PORT}:8080
+    environment:
+      KAFKA_CONNECT_URIS: http://debez:8083
+
+  db:
+    image: mssql/server:2022-latest
+    container_name: sql-db
+    hostname: sql-db
+    user: root
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_SA_PASSWORD}
+      MSSQL_PID: "Developer"
+      TZ: "Asia/Tehran"
+      MSSQL_AGENT_ENABLED: "True"
+      MSSQL_COLLATION: "Persian_100_CI_AI_SC"
+      MSMQL_TRUST_SERVER_CERTIFICATE: "true"
+    ports:
+      - ${DB_MAP_PORT}:1433
+    volumes:
+      - F:\data\debkaf\db:/var/opt/mssql/data
+    mem_limit: ${DB_MEM_LIMIT}

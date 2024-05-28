@@ -1,0 +1,17 @@
+{
+  "name": "cat-inventory",
+  "config": {
+    "connector.class": "io.debezium.connector.sqlserver.SqlServerConnector",
+    "name": "cat-inventory",
+    "topic.prefix": "cat-inv-catland",
+    "database.hostname": "sql-db",
+    "database.user": "sa",
+    "database.password": "@SA@123456789",
+    "database.encrypt": "false",
+    "database.names": "Catland",
+    "tombstones.on.delete": "false",
+    "schema.history.internal.kafka.bootstrap.servers": "limgrave:29092,liurnia:29092,caelid:29092",
+    "schema.name.adjustment.mode": "avro",
+    "schema.history.internal.kafka.topic": "catland-sch-his"
+  }
+}
